@@ -50,6 +50,31 @@ int kcapi_rng_seed(struct kcapi_handle *handle, uint8_t *seed,
 	return _kcapi_common_setkey(handle, seed, seedlen);
 }
 
+int _kcapi_rng_set_entropy(struct kcapi_handle *handle,
+			  const uint8_t *entropy, uint32_t entropylen)
+{
+	struct kcapi_handle_tfm *tfm = handle->tfm;
+	int ret;
+
+	ret = setsockopt(tfm->tfmfd, SOL_ALG, ALG_SET_DRBG_ENTROPY, entropy,
+			 entropylen);
+	if (ret < 0)
+		ret = -errno;
+	kcapi_dolog(KCAPI_LOG_DEBUG,
+		    "AF_ALG setentropy: setsockopt syscall returned %d", ret);
+
+	return ret;
+}
+
+DSO_PUBLIC
+int kcapi_rng_set_entropy(struct kcapi_handle *handle, uint8_t *entropy,
+			 uint32_t entropy_len)
+{
+	kcapi_dolog(KCAPI_LOG_VERBOSE, "Set DRNG entropy with %u bytes",
+		    entropy_len);
+	return _kcapi_rng_set_entropy(handle, entropy, entropy_len);
+}
+
 DSO_PUBLIC
 int32_t kcapi_rng_generate(struct kcapi_handle *handle,
 			   uint8_t *buffer, uint32_t len)
@@ -72,6 +97,22 @@ int32_t kcapi_rng_generate(struct kcapi_handle *handle,
 	}
 
 	return out;
+}
+
+DSO_PUBLIC
+int kcapi_rng_send_addtl(struct kcapi_handle *handle,
+			 uint8_t *buffer, uint32_t len)
+{
+	struct iovec iov;
+	int r = 0;
+
+	iov.iov_base = (void *)(uintptr_t)buffer;
+	iov.iov_len = len;
+	r = _kcapi_common_send_data(handle, &iov, 1, 0);
+	if (r < 0)
+		return r;
+
+	return 0;
 }
 
 DSO_PUBLIC

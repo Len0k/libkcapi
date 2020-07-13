@@ -33,7 +33,7 @@ extern "C"
 
 /*
  * Flags for the encrypt / decrypt operations
- * 
+ *
  * @KCAPI_ACCESS_HEURISTIC Allow the libkcapi heuristic to determine the
  * optimal kernel access type
  * @KCAPI_ACCESS_VMSPLICE Require libkcapi to always use the vmsplice zero
@@ -47,7 +47,7 @@ extern "C"
 
 /*
  * Flags for initializing a cipher handle
- * 
+ *
  * @KCAPI_INIT_AIO Handle uses AIO kernel interface if available
  */
 #define KCAPI_INIT_AIO		(1<<0)
@@ -1614,6 +1614,14 @@ void kcapi_rng_destroy(struct kcapi_handle *handle);
  */
 int kcapi_rng_seed(struct kcapi_handle *handle, uint8_t *seed,
 		   uint32_t seedlen);
+
+// SP800-90A DRBG: EntropyInput + Nonce
+int kcapi_rng_set_entropy(struct kcapi_handle *handle, uint8_t *entropy,
+			  uint32_t entropy_len);
+
+// SP800-90A DRBG: Provide additional data for DRNG
+int kcapi_rng_send_addtl(struct kcapi_handle *handle,
+			     uint8_t *buffer, uint32_t len);
 
 /**
  * kcapi_rng_generate() - generate a random number

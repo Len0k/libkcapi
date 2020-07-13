@@ -61,6 +61,9 @@ extern "C"
 #define ALG_SET_ECDH_CURVE		8
 #endif
 
+#ifndef ALG_SET_DRBG_ENTROPY
+#define ALG_SET_DRBG_ENTROPY		6
+#endif
 
 #ifndef ALG_OP_SIGN
 #define ALG_OP_SIGN			2

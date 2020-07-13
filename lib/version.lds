@@ -44,6 +44,8 @@ LIBKCAPI_0.12.0 {
 	kcapi_rng_init;
 	kcapi_rng_destroy;
 	kcapi_rng_seed;
+	kcapi_rng_set_entropy;
+	kcapi_rng_send_addtl;
 	kcapi_rng_generate;
 	kcapi_set_verbosity;
 	kcapi_versionstring;

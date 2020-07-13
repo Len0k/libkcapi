@@ -223,6 +223,59 @@ static int parse_opts(int argc, char *argv[], unsigned long *outlen)
 	return 0;
 }
 
+int test_cavp()
+{
+	int ret;
+	const int num_bytes = 64;
+	uint8_t buf[KCAPI_RNG_BUFSIZE] __aligned(KCAPI_APP_ALIGN);
+	/*
+	 * EntropyInput = ddbf2127c6745095c9476d1b346cf11f78ad7f2c8108e240b0f2c2c37f85fc2f
+		Nonce = 00478ba2fbad6f4e41e6604a7fa393a7
+		PersonalizationString = b20598b551f3145b9b4adac17ff0c3a357ed9d055e650442d752ab47b7a65295
+		AdditionalInput = 4882cff5e230e0b9f7ce67b891dd81972c59a4c0f41b7aaa555dd6797680aa48
+		AdditionalInput = 4c8ddc6c0f85fdc0cb1db4937073d2c8e8846389e4738e5badfa8204f1751792
+		ReturnedBits = ab72fa9918018f8b85fab3a5d83cf9c7e89699522c9c615efff416387f73dc7c940d92b7d7e5ea9653fc5c67c3d4a8d15d2833f5b46fea6baf5816b4c19c6aa9
+	 */
+	uint8_t entropy_input[] = "\xdd\xbf\x21\x27\xc6\x74\x50\x95\xc9\x47\x6d\x1b\x34\x6c\xf1\x1f\x78\xad\x7f\x2c\x81\x08\xe2\x40\xb0\xf2\xc2\xc3\x7f\x85\xfc\x2f" "\x00\x47\x8b\xa2\xfb\xad\x6f\x4e\x41\xe6\x60\x4a\x7f\xa3\x93\xa7";
+	uint8_t personalization_string[] = "\xb2\x05\x98\xb5\x51\xf3\x14\x5b\x9b\x4a\xda\xc1\x7f\xf0\xc3\xa3\x57\xed\x9d\x05\x5e\x65\x04\x42\xd7\x52\xab\x47\xb7\xa6\x52\x95";  // a.k.a. seed
+	uint8_t additional_a[] = "\x48\x82\xcf\xf5\xe2\x30\xe0\xb9\xf7\xce\x67\xb8\x91\xdd\x81\x97\x2c\x59\xa4\xc0\xf4\x1b\x7a\xaa\x55\x5d\xd6\x79\x76\x80\xaa\x48";
+	uint8_t additional_b[] = "\x4c\x8d\xdc\x6c\x0f\x85\xfd\xc0\xcb\x1d\xb4\x93\x70\x73\xd2\xc8\xe8\x84\x63\x89\xe4\x73\x8e\x5b\xad\xfa\x82\x04\xf1\x75\x17\x92";
+	ret = kcapi_rng_init(&rng, "drbg_nopr_ctr_aes256", 0);
+	if (ret)
+		return ret;
+	kcapi_rng_set_entropy(rng, entropy_input, sizeof(entropy_input) - 1);
+
+	ret = kcapi_rng_seed(rng, personalization_string, sizeof(personalization_string) - 1);
+	if (ret)
+		goto out;
+	dolog(KCAPI_LOG_DEBUG, "Seeding the DRNG with %u bytes of data",
+	      sizeof(personalization_string) - 1);
+
+	// calling generate twice is not the same as calling it with 2*num_bytes
+	ret = kcapi_rng_send_addtl(rng, additional_a, sizeof(additional_a) - 1);
+	if (ret < 0)
+		goto out;
+	ret = kcapi_rng_generate(rng, buf, num_bytes);
+	if (ret < 0)
+		goto out;
+	ret = kcapi_rng_send_addtl(rng, additional_b, sizeof(additional_b) - 1);
+	if (ret < 0)
+		goto out;
+	ret = kcapi_rng_generate(rng, buf, num_bytes);
+	if (ret < 0)
+		goto out;
+	char hexbuf[2 * KCAPI_RNG_BUFSIZE];
+	bin2hex(buf, ret, hexbuf, sizeof(hexbuf), 0);
+	fwrite(hexbuf, 2 * ret, 1, stdout);
+	ret = 0;
+
+out:
+	if (rng)
+		kcapi_rng_destroy(rng);
+
+	return ret;
+}
+
 int main(int argc, char *argv[])
 {
 	int ret;
@@ -237,10 +290,13 @@ int main(int argc, char *argv[])
 
 	set_verbosity("kcapi-rng", Verbosity);
 
-	if (rng_name)
+	if (rng_name) {
+		if (!strncmp(rng_name, "cavp", 4))
+			return test_cavp();
 		ret = kcapi_rng_init(&rng, rng_name, 0);
-	else
+	} else {
 		ret = kcapi_rng_init(&rng, "stdrng", 0);
+	}
 	if (ret)
 		return ret;
 
